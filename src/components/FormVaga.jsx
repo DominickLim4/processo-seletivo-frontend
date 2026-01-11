@@ -1,70 +1,93 @@
-import { useState } from 'react'
-import { Card, Input, Button, InputNumber, Form} from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { useEffect } from 'react';
+import { Form, Input, Button } from 'antd';
+import { PlusOutlined, SaveOutlined } from '@ant-design/icons';
 
-// Recebe 'aoCadastrar' do App.jsx
-// Avisa o pai quando algo mudar
-// Componente Stateless
-function FormVaga({ aoCadastrar }) {
+/**
+ * Componente de Formulário Unificado
+ * @param {Object} props
+ * @param {Object} props.dadosIniciais - Se vier preenchido é Edição. null, é Criação
+ * @param {Function} props.aoSubmeter - Função que recebe os dados do form (onFinish)
+ * @param {String} props.textoBotao - Texto do botão de ação
+ */
 
-    // Hooks de Estado - Transforma em Variáveis Reativas
-    const [titulo, setTitulo] = useState('')
-    const [descricao, setDescricao] = useState('')
-    const [salario, setSalario] = useState('')
+function FormVaga({ dadosIniciais, aoSubmeter, textoBotao }) {
+    const [form] = Form.useForm(); // Hook
 
-    const handleSubmit = () => {
-        if (!titulo || !descricao || !salario) return;
+    // Monitora mudanças nos dadosIniciais
+    // Se mudou preenche o form
+    // Se veio null reseta o form
+    useEffect(() => {
+        if (dadosIniciais) {
+            form.setFieldsValue(dadosIniciais);  // Preenche
+        } else {
+            form.resetFields(); // Limpa
+        }
+    }, [dadosIniciais, form]);
 
-        // Entrega o pacote
-        aoCadastrar({
-            titulo,
-            descricao,
-            salario: parseFloat(salario)
-        })
-
-        // Reseta o Forms
-        setTitulo('')
-        setDescricao('')
-        setSalario('')
-    }
+    const handleFinish = (values) => {
+        // Tratamento de Dados
+        const dadosFormatados = {
+            ...values,
+            salario: parseFloat(values.salario)
+        };
+        
+        aoSubmeter(dadosFormatados);
+        
+        // Limpa o form após salvar
+        if (!dadosIniciais) {
+            form.resetFields();
+        }
+    };
 
     return (
-        <Card title="Cadastrar Nova Vaga" variant='borderless' style={{ marginBottom: 20 }}>
-            <Form layout="vertical" onFinish={handleSubmit}>
-                <Form.Item label="Título da Vaga" required>
-                    <Input 
-                        placeholder="Ex: Dev Python Jr" 
-                        value={titulo} 
-                        onChange={e => setTitulo(e.target.value)} 
-                    />
-                </Form.Item>
-                
-                <Form.Item label="Descrição" required>
-                    <Input.TextArea 
-                        rows={3}
-                        placeholder="Detalhes da vaga..." 
-                        value={descricao} 
-                        onChange={e => setDescricao(e.target.value)} 
-                    />
-                </Form.Item>
+        <Form 
+            form={form} 
+            layout="vertical" 
+            onFinish={handleFinish}
+            initialValues={dadosIniciais}
+        >
 
-                <Form.Item label="Salário (R$)" required>
-                    <Input 
-                        type="number"
-                        prefix="R$"
-                        placeholder="0.00" 
-                        value={salario} 
-                        onChange={e => setSalario(e.target.value)} 
-                        style={{ width: '100%' }}
-                    />
-                </Form.Item>
+            <Form.Item 
+                name="titulo" 
+                label="Título da Vaga" 
+                rules={[{ required: true, message: 'Por favor, insira o título!' }]}
+            >
+                <Input placeholder="Ex: Dev Python Jr" />
+            </Form.Item>
+            
+            <Form.Item 
+                name="descricao" 
+                label="Descrição" 
+                rules={[{ required: true, message: 'Insira uma descrição!' }]}
+            >
+                <Input.TextArea rows={4} placeholder="Detalhes da vaga..." />
+            </Form.Item>
 
-                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} block>
-                    Cadastrar Vaga
+            <Form.Item 
+                name="salario" 
+                label="Salário (R$)" 
+                rules={[{ required: true, message: 'Insira o salário!' }]}
+            >
+                <Input 
+                    type="number" 
+                    prefix="R$" 
+                    placeholder="0.00" 
+                    style={{ width: '100%' }}
+                />
+            </Form.Item>
+
+            <Form.Item>
+                <Button 
+                    type="primary" 
+                    htmlType="submit" 
+                    icon={dadosIniciais ? <SaveOutlined /> : <PlusOutlined />} 
+                    block
+                >
+                    {textoBotao || (dadosIniciais ? 'Salvar Alterações' : 'Cadastrar Vaga')}
                 </Button>
-            </Form>
-        </Card>
+            </Form.Item>
+        </Form>
     );
 }
 
-export default FormVaga
+export default FormVaga;

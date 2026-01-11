@@ -6,7 +6,7 @@ import { RocketOutlined, FileExcelOutlined, FilePdfOutlined, LoadingOutlined } f
 // Importando componentes
 import FormVaga from './components/FormVaga';
 import ListaVagas from './components/ListaVagas';
-import ModalEditar from './components/ModalEditar';
+import ModalWrapper from './components/ModalWrapper';
 
 const { Header, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -22,7 +22,7 @@ function App() {
     const [modalVisivel, setModalVisivel] = useState(false);
     const [vagaEmEdicao, setVagaEmEdicao] = useState(null);
     
-    // Estado para travar os botões de donwload durante o processamento
+    // Estado de exportação
     const [exportando, setExportando] = useState(false);
 
     // CRUD
@@ -35,7 +35,7 @@ function App() {
             setVagas(data); // atualiza a lista
         } catch (error) {
             console.error(error);
-            message.error('Erro ao buscar vagas do servidor.');
+            message.error('Erro ao buscar vagas.');
         } finally {
             setLoading(false); 
         }
@@ -71,40 +71,40 @@ function App() {
         }
     }
 
-    // --- Abre o Modal, guarda os dados da vaga
-    function prepararEdicao(vaga) {
-        setVagaEmEdicao(vaga); 
-        setModalVisivel(true); 
+    // Prepara e abre o modal
+    function abrirEdicao(vaga) {
+        setVagaEmEdicao(vaga);
+        setModalVisivel(true);
     }
 
-    // --- UPDATE 
-    // Chamada pelo ModalEditar
-    async function atualizarVaga(id, dadosAtualizados) {
+    // --- UPDATE
+    async function atualizarVaga(dados) {
         try {
-            await api.put(`vagas/${id}/`, dadosAtualizados);
-            message.success('Vaga atualizada com sucesso!');
-
-            // limpeza
-            setModalVisivel(false); 
-            setVagaEmEdicao(null);  
-            carregarVagas();        
+            await api.put(`vagas/${vagaEmEdicao.id}/`, dados);
+            message.success('Vaga atualizada!');
+            
+            fecharModal(); // Usa a função auxiliar para limpar tudo
+            carregarVagas();
         } catch (error) {
             console.error(error);
-            message.error('Erro ao atualizar vaga.');
+            message.error('Erro ao atualizar.');
         }
+    }
+
+    // Função auxiliar para fechar e limpar estado
+    function fecharModal() {
+        setModalVisivel(false);
+        setVagaEmEdicao(null);
     }
 
     // --- DOWNLOAD ASSÍNCRONO
     const solicitarDownload = async (formato) => {
         try {
-            setExportando(true); // trava o botão pra evitar clique duplo
+            setExportando(true);
             message.loading(`Gerando ${formato.toUpperCase()}...`, 1);
 
-            // inicia a tarefa no Celery
             const { data } = await api.post('vagas/exportar_relatorio/', { formato });
             const taskId = data.task_id;
-
-            // começa a monitorar
             verificarStatus(taskId);
 
         } catch (error) {
@@ -114,22 +114,17 @@ function App() {
         }
     };
 
-    // Função recursiva pra ver se já acabou
     const verificarStatus = async (taskId) => {
         try {
             const { data } = await api.get(`vagas/status_tarefa/${taskId}/`);
 
             if (data.status === 'CONCLUIDO' && data.url) {
-                // SUCESSO
                 message.success("Arquivo pronto! Baixando...");
                 setExportando(false);
-                
-                // forçar o download em nova aba
                 const downloadUrl = `http://127.0.0.1:8000${data.url}`;
                 window.open(downloadUrl, '_blank'); 
 
             } else {
-                // tenta de novo em 2s (recursão)
                 setTimeout(() => verificarStatus(taskId), 2000);
             }
         } catch (error) {
@@ -139,9 +134,9 @@ function App() {
         }
     };
 
-    // Renderização
     return (
         <Layout className="layout" style={{ minHeight: '100vh' }}>
+            {/* Header Restaurado */}
             <Header style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -156,7 +151,6 @@ function App() {
                     </Title>
                 </div>
                 
-                {/* botões de exportação */}
                 <Space>
                     <Button 
                         type="primary" 
@@ -182,35 +176,46 @@ function App() {
             <Content style={{ padding: '0 50px', marginTop: 30 }}>
                 <div className="site-layout-content" style={{ maxWidth: 900, margin: '0 auto' }}>
                     
-                    {/* componente de cadastro */}
-                    <FormVaga aoCadastrar={cadastrarVaga} />
+                    {/* Formulário de Criação */}
+                    <div style={{ background: '#fff', padding: 24, marginBottom: 20, borderRadius: 8 }}>
+                        <h3>Cadastrar Nova Vaga</h3>
+                        <FormVaga 
+                            dadosIniciais={null} 
+                            aoSubmeter={cadastrarVaga} 
+                            textoBotao="Cadastrar Vaga"
+                        />
+                    </div>
 
-                    {/* lista com loading */}
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: 50 }}>
-                            <Spin size="large" />
-                        </div>
+                        <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>
                     ) : (
                         <ListaVagas 
                             lista={vagas} 
                             aoDeletar={removerVaga}
-                            aoEditar={prepararEdicao} 
+                            aoEditar={abrirEdicao} 
                         />
                     )}
                 </div>
             </Content>
             
+            {/* Footer */}
             <Footer style={{ textAlign: 'center' }}>
                 Sistema de Vagas 2026 - Spassu Processo Seletivo
             </Footer>
 
-            {/* modal de edição */}
-            <ModalEditar 
-                isVisible={modalVisivel}
-                vagaAtual={vagaEmEdicao}
-                aoCancelar={() => setModalVisivel(false)}
-                aoSalvar={atualizarVaga}
-            />
+            {/* Modal com Formulário de Edição */}
+            <ModalWrapper 
+                titulo="Editar Vaga"
+                visivel={modalVisivel}
+                aoFechar={fecharModal} // Função que limpa o estado
+            >
+                <FormVaga 
+                    dadosIniciais={vagaEmEdicao} 
+                    aoSubmeter={atualizarVaga}
+                    textoBotao="Salvar Alterações"
+                />
+            </ModalWrapper>
+
         </Layout>
     );
 }

@@ -38,9 +38,20 @@ O frontend foi construído para ser responsivo, desacoplado e resiliente
 
 ---
 
-## 3. Testes Unitários
+## Testes
 
-Para garantir que a interface não quebrou:
+Este projeto utiliza **Jest** e **React Testing Library** para garantir a qualidade do código.
 
+### Estratégia de Testes
+
+Como esse projeto utiliza **Ant Design 6** e **React 19** em ambientes de teste simulados, foi adotado a estratégia de **Mocking de Componentes de UI**
+Isso significa que, nos testes unitários, os componentes visuais do Ant Design (`Form`, `Input`, `Button`) são substituídos por versões simplificadas, garantindo: 
+- Testes mais rápidos
+- Foco na lógica de negócio e fluxo de dados, não na biblioteca de estilos
+- Eliminação de falsos negativos causados por animações ou APIs de navegador ausentes
+
+### Comandos Disponíveis
+
+Rodar todos os testes:
 ```bash
-npm run test
+npm test
